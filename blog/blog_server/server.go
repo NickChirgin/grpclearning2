@@ -14,6 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var collection *mongo.Collection
@@ -35,8 +37,8 @@ func main(){
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://root:qwerty@172.17.0.2:27017"))
 	if err != nil { log.Fatalf("Error while connecting to db: %v" ,err) }
+	lis, err := net.Listen("tcp", "localhost:50051")
 	collection = client.Database("grpc_test").Collection("blog")
-	lis, err := net.Listen("tcp", "0.0.0.0:50051")
 	if err != nil {
 		log.Fatalf("failed to listen %v", err)
 	}
@@ -57,4 +59,36 @@ func main(){
 	lis.Close()
 	fmt.Println("End of program")
 	client.Disconnect(context.TODO())
+}
+
+func (s *server) CreateBlog(ctx context.Context, req *blogpb.CreateBlogRequest) (*blogpb.CreateBlogResponse, error) {
+	fmt.Println("Creating blog")
+	blog := req.GetBlog()
+	data := item {
+		AuthorID: blog.GetAuthorId(),
+		Title: blog.GetTitle(),
+		Content: blog.GetContent(),
+	}
+	res, err := collection.InsertOne(context.Background(), data)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		) 
+	}
+	oid, ok := res.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		) 
+	}
+	return &blogpb.CreateBlogResponse{
+		Blog: &blogpb.Blog{
+			Id: oid.Hex(),
+			AuthorId: blog.GetAuthorId(),
+			Title: blog.GetTitle(),
+			Content: blog.GetContent(),
+		},
+	}, nil
 }
