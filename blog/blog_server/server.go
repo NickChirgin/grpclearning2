@@ -10,10 +10,13 @@ import (
 	"time"
 
 	"github.com/nickchirgin/grpclearning2/blog/blogpb"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var collection *mongo.Collection
@@ -35,8 +38,8 @@ func main(){
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://root:qwerty@172.17.0.2:27017"))
 	if err != nil { log.Fatalf("Error while connecting to db: %v" ,err) }
+	lis, err := net.Listen("tcp", "localhost:50051")
 	collection = client.Database("grpc_test").Collection("blog")
-	lis, err := net.Listen("tcp", "0.0.0.0:50051")
 	if err != nil {
 		log.Fatalf("failed to listen %v", err)
 	}
@@ -57,4 +60,65 @@ func main(){
 	lis.Close()
 	fmt.Println("End of program")
 	client.Disconnect(context.TODO())
+}
+
+func (s *server) CreateBlog(ctx context.Context, req *blogpb.CreateBlogRequest) (*blogpb.CreateBlogResponse, error) {
+	fmt.Println("Creating blog")
+	blog := req.GetBlog()
+	data := item {
+		AuthorID: blog.GetAuthorId(),
+		Title: blog.GetTitle(),
+		Content: blog.GetContent(),
+	}
+	res, err := collection.InsertOne(context.Background(), data)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		) 
+	}
+	oid, ok := res.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		) 
+	}
+	return &blogpb.CreateBlogResponse{
+		Blog: &blogpb.Blog{
+			Id: oid.Hex(),
+			AuthorId: blog.GetAuthorId(),
+			Title: blog.GetTitle(),
+			Content: blog.GetContent(),
+		},
+	}, nil
+}
+
+func (*server) ReadBlog(ctx context.Context, req *blogpb.ReadBlogRequest) (*blogpb.ReadBlogResponse, error) {
+	fmt.Println("Read blog request")
+	blogId := req.GetBlogId()
+	oid, err := primitive.ObjectIDFromHex(blogId)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprint("Cannot parse ID"),
+		)
+	}
+	data := &item{}
+	filter := bson.D{{Key: "_id", Value: oid}}	
+	result := collection.FindOne(context.Background(), filter)
+	if err := result.Decode(data); err != nil {
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("Cannot find blog with specified ID: %v", err),
+		)
+	}
+	return &blogpb.ReadBlogResponse{
+		Blog: &blogpb.Blog{
+			AuthorId: data.AuthorID,
+			Id: data.ID.Hex(),
+			Content: data.Content,
+			Title: data.Title,
+		},
+	}, nil	
 }

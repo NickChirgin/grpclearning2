@@ -7,7 +7,10 @@
 package blogpb
 
 import (
+	context "context"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -15,12 +18,17 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-const ()
+const (
+	BlogService_CreateBlog_FullMethodName = "/blog.BlogService/CreateBlog"
+	BlogService_ReadBlog_FullMethodName   = "/blog.BlogService/ReadBlog"
+)
 
 // BlogServiceClient is the client API for BlogService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BlogServiceClient interface {
+	CreateBlog(ctx context.Context, in *CreateBlogRequest, opts ...grpc.CallOption) (*CreateBlogResponse, error)
+	ReadBlog(ctx context.Context, in *ReadBlogRequest, opts ...grpc.CallOption) (*ReadBlogResponse, error)
 }
 
 type blogServiceClient struct {
@@ -31,10 +39,30 @@ func NewBlogServiceClient(cc grpc.ClientConnInterface) BlogServiceClient {
 	return &blogServiceClient{cc}
 }
 
+func (c *blogServiceClient) CreateBlog(ctx context.Context, in *CreateBlogRequest, opts ...grpc.CallOption) (*CreateBlogResponse, error) {
+	out := new(CreateBlogResponse)
+	err := c.cc.Invoke(ctx, BlogService_CreateBlog_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blogServiceClient) ReadBlog(ctx context.Context, in *ReadBlogRequest, opts ...grpc.CallOption) (*ReadBlogResponse, error) {
+	out := new(ReadBlogResponse)
+	err := c.cc.Invoke(ctx, BlogService_ReadBlog_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlogServiceServer is the server API for BlogService service.
 // All implementations must embed UnimplementedBlogServiceServer
 // for forward compatibility
 type BlogServiceServer interface {
+	CreateBlog(context.Context, *CreateBlogRequest) (*CreateBlogResponse, error)
+	ReadBlog(context.Context, *ReadBlogRequest) (*ReadBlogResponse, error)
 	mustEmbedUnimplementedBlogServiceServer()
 }
 
@@ -42,6 +70,12 @@ type BlogServiceServer interface {
 type UnimplementedBlogServiceServer struct {
 }
 
+func (UnimplementedBlogServiceServer) CreateBlog(context.Context, *CreateBlogRequest) (*CreateBlogResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateBlog not implemented")
+}
+func (UnimplementedBlogServiceServer) ReadBlog(context.Context, *ReadBlogRequest) (*ReadBlogResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadBlog not implemented")
+}
 func (UnimplementedBlogServiceServer) mustEmbedUnimplementedBlogServiceServer() {}
 
 // UnsafeBlogServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -55,13 +89,58 @@ func RegisterBlogServiceServer(s grpc.ServiceRegistrar, srv BlogServiceServer) {
 	s.RegisterService(&BlogService_ServiceDesc, srv)
 }
 
+func _BlogService_CreateBlog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBlogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlogServiceServer).CreateBlog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlogService_CreateBlog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlogServiceServer).CreateBlog(ctx, req.(*CreateBlogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlogService_ReadBlog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadBlogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlogServiceServer).ReadBlog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlogService_ReadBlog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlogServiceServer).ReadBlog(ctx, req.(*ReadBlogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlogService_ServiceDesc is the grpc.ServiceDesc for BlogService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var BlogService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "blog.BlogService",
 	HandlerType: (*BlogServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "blog/blogpb/blog.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateBlog",
+			Handler:    _BlogService_CreateBlog_Handler,
+		},
+		{
+			MethodName: "ReadBlog",
+			Handler:    _BlogService_ReadBlog_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "blog/blogpb/blog.proto",
 }
